@@ -1,10 +1,12 @@
 // @ts-check
 
+import createDebug from 'debug'
 import semanticRelease from 'semantic-release'
 import semver from 'semver'
 import { exec } from 'tinyexec'
 
 const DEFAULT_MAIN_BRANCH = 'main'
+const debug = createDebug('semantic-release-next-version')
 /** @param {string} mainBranch */
 function buildDefaultOptions(mainBranch) {
   /** @type {import('semantic-release').Options} */
@@ -90,6 +92,14 @@ export async function getNextVersion({
   release = false,
   mainBranch = DEFAULT_MAIN_BRANCH,
 } = {}) {
+  debug('start getNextVersion')
+  debug('cwd=%s mainBranch=%s release=%s', cwd, mainBranch, release)
+  debug(
+    'env GITHUB_HEAD_REF=%s GITHUB_REF=%s GITHUB_REF_NAME=%s',
+    process.env.GITHUB_HEAD_REF,
+    process.env.GITHUB_REF,
+    process.env.GITHUB_REF_NAME
+  )
   if (
     process.env.GITHUB_HEAD_REF &&
     process.env.GITHUB_REF?.startsWith('refs/pull/')
@@ -106,13 +116,20 @@ export async function getNextVersion({
     ...(tagFormat ? { tagFormat } : {}),
     ...(plugins ? { plugins } : {}),
   }
+  debug(
+    'loadedConfig.branches=%o overrideBranches=%o',
+    loadedConfig.branches,
+    overrideBranches
+  )
   const currentBranch = (await getCurrentBranch(cwd)) || mainBranch
+  debug('currentBranch=%s', currentBranch)
   const baseBranches = overrideBranches ?? loadedConfig.branches
   const branches = Array.isArray(baseBranches)
     ? [...baseBranches]
     : baseBranches
       ? [baseBranches]
       : []
+  debug('branches before ensure current=%o', branches)
 
   if (!branchExists(branches, currentBranch)) {
     branches.push({
@@ -121,6 +138,7 @@ export async function getNextVersion({
         currentBranch !== mainBranch ? toPrereleaseId(currentBranch) : false,
     })
   }
+  debug('final branches=%o', branches)
 
   const result = await semanticRelease(
     {

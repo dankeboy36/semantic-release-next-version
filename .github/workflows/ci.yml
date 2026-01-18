@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -56,6 +57,8 @@ jobs:
       - name: Smoke Test
         shell: bash
         run: ./scripts/smoke.sh
+        env:
+          DEBUG: semantic-release-next-version
 
   release:
     name: Release

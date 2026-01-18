@@ -5,7 +5,11 @@ set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 TARBALL=""
 TMP_DIR=""
-CURRENT_BRANCH="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+
+CURRENT_BRANCH="${GITHUB_REF_NAME:-$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"
+if [[ "$CURRENT_BRANCH" == "HEAD" || -z "$CURRENT_BRANCH" ]]; then
+  CURRENT_BRANCH="main"
+fi
 
 cleanup() {
   if [[ -n "$TARBALL" && -f "$ROOT_DIR/$TARBALL" ]]; then

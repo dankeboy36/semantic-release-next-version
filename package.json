@@ -55,6 +55,7 @@
     "test": "vitest run --coverage --reporter verbose"
   },
   "dependencies": {
+    "debug": "^4.4.3",
     "meow": "^14.0.0",
     "semver": "^7.7.3",
     "tinyexec": "^1.0.2"

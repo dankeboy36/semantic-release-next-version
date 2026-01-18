@@ -168,3 +168,11 @@ console.log(version)
 ## License
 
 MIT
+
+---
+
+## Debugging
+
+- Enable verbose logs by setting `DEBUG=semantic-release-next-version` (optionally add `,semantic-release:*` for semantic-release internals).
+- In GitHub Actions, you can set `DEBUG` in a step that runs the CLI (the CI smoke test does this).
+- When running from a packed tarball or temp dir, pass `--cwd /path/to/repo` and `--main-branch <branch>` so branch detection stays correct.
