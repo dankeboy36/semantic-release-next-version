@@ -54,6 +54,7 @@ jobs:
         run: npm run build
 
       - name: Smoke Test
+        shell: bash
         run: ./scripts/smoke.sh
 
   release:
