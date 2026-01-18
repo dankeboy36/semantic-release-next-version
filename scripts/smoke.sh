@@ -24,6 +24,8 @@ trap cleanup EXIT
 
 export GITHUB_REF="refs/heads/$CURRENT_BRANCH"
 export GITHUB_REF_NAME="$CURRENT_BRANCH"
+export GITHUB_HEAD_REF="$CURRENT_BRANCH"
+export GITHUB_BASE_REF="$MAIN_BRANCH"
 
 node "$ROOT_DIR/bin/cli.cjs" --help
 node "$ROOT_DIR/bin/cli.cjs" --version --main-branch "$MAIN_BRANCH"
@@ -36,6 +38,15 @@ cp "$ROOT_DIR/$TARBALL" "$TMP_DIR/"
 
 (
   cd "$TMP_DIR"
+  GITHUB_REF="refs/heads/$CURRENT_BRANCH" \
+  GITHUB_REF_NAME="$CURRENT_BRANCH" \
+  GITHUB_HEAD_REF="$CURRENT_BRANCH" \
+  GITHUB_BASE_REF="$MAIN_BRANCH" \
   npx --yes --package="./$TARBALL" next-version-helper --version --cwd "$ROOT_DIR" --main-branch "$MAIN_BRANCH"
+
+  GITHUB_REF="refs/heads/$CURRENT_BRANCH" \
+  GITHUB_REF_NAME="$CURRENT_BRANCH" \
+  GITHUB_HEAD_REF="$CURRENT_BRANCH" \
+  GITHUB_BASE_REF="$MAIN_BRANCH" \
   npx --yes --package="./$TARBALL" next-version-helper --release --cwd "$ROOT_DIR" --main-branch "$MAIN_BRANCH"
 )
