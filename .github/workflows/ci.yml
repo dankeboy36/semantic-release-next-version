@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: ./scripts/smoke.sh
         env:
-          DEBUG: semantic-release-next-version
+          DEBUG: semantic-release-next-version,semantic-release:*
 
   release:
     name: Release
