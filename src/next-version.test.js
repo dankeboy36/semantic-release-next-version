@@ -24,11 +24,7 @@ const semanticReleaseMock = /** @type {ReturnType<typeof vi.fn>} */ (
 )
 const execMock = /** @type {ReturnType<typeof vi.fn>} */ (exec)
 
-function mockGit({
-  originUrl = '',
-  branch = 'main',
-  commit = 'abcdef0',
-} = {}) {
+function mockGit({ originUrl = '', branch = 'main', commit = 'abcdef0' } = {}) {
   execMock.mockImplementation(async (_cmd, args) => {
     if (
       args?.[0] === 'config' &&
