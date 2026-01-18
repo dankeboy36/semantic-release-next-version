@@ -26,7 +26,13 @@ export GITHUB_REF="refs/heads/$CURRENT_BRANCH"
 export GITHUB_REF_NAME="$CURRENT_BRANCH"
 export GITHUB_HEAD_REF="$CURRENT_BRANCH"
 export GITHUB_BASE_REF="$MAIN_BRANCH"
-export DEBUG="${DEBUG:-semantic-release-next-version,semantic-release:*}"
+if [[ -z "${DEBUG:-}" ]]; then
+  export DEBUG="semantic-release-next-version,semantic-release:*"
+else
+  [[ "$DEBUG" == *semantic-release-next-version* ]] || DEBUG+=" ,semantic-release-next-version"
+  [[ "$DEBUG" == *semantic-release:* ]] || DEBUG+=" ,semantic-release:*"
+  export DEBUG="${DEBUG// ,/,}"
+fi
 
 node "$ROOT_DIR/bin/cli.cjs" --help
 node "$ROOT_DIR/bin/cli.cjs" --version --main-branch "$MAIN_BRANCH"
