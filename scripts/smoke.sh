@@ -6,9 +6,10 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 TARBALL=""
 TMP_DIR=""
 
-CURRENT_BRANCH="${GITHUB_REF_NAME:-$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"
+MAIN_BRANCH="${GITHUB_BASE_REF:-main}"
+CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}}"
 if [[ "$CURRENT_BRANCH" == "HEAD" || -z "$CURRENT_BRANCH" ]]; then
-  CURRENT_BRANCH="main"
+  CURRENT_BRANCH="$MAIN_BRANCH"
 fi
 
 cleanup() {
@@ -25,9 +26,9 @@ export GITHUB_REF="refs/heads/$CURRENT_BRANCH"
 export GITHUB_REF_NAME="$CURRENT_BRANCH"
 
 node "$ROOT_DIR/bin/cli.cjs" --help
-node "$ROOT_DIR/bin/cli.cjs" --version --main-branch "$CURRENT_BRANCH"
-node "$ROOT_DIR/bin/cli.cjs" --main-branch "$CURRENT_BRANCH"
-node "$ROOT_DIR/bin/cli.cjs" --release --main-branch "$CURRENT_BRANCH"
+node "$ROOT_DIR/bin/cli.cjs" --version --main-branch "$MAIN_BRANCH"
+node "$ROOT_DIR/bin/cli.cjs" --main-branch "$MAIN_BRANCH"
+node "$ROOT_DIR/bin/cli.cjs" --release --main-branch "$MAIN_BRANCH"
 
 TARBALL="$(cd "$ROOT_DIR" && npm pack --silent)"
 TMP_DIR="$(mktemp -d)"
@@ -35,6 +36,6 @@ cp "$ROOT_DIR/$TARBALL" "$TMP_DIR/"
 
 (
   cd "$TMP_DIR"
-  npx --yes --package="./$TARBALL" next-version-helper --version --cwd "$ROOT_DIR" --main-branch "$CURRENT_BRANCH"
-  npx --yes --package="./$TARBALL" next-version-helper --release --cwd "$ROOT_DIR" --main-branch "$CURRENT_BRANCH"
+  npx --yes --package="./$TARBALL" next-version-helper --version --cwd "$ROOT_DIR" --main-branch "$MAIN_BRANCH"
+  npx --yes --package="./$TARBALL" next-version-helper --release --cwd "$ROOT_DIR" --main-branch "$MAIN_BRANCH"
 )
