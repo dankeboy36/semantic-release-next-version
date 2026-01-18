@@ -12,7 +12,7 @@ function buildDefaultOptions(mainBranch) {
   /** @type {import('semantic-release').Options} */
   return {
     repositoryUrl: '.',
-    branches: [mainBranch, { name: '*' }],
+    branches: [mainBranch, { name: '*', prerelease: true }],
     // eslint-disable-next-line no-template-curly-in-string
     tagFormat: '${version}',
     plugins: ['@semantic-release/commit-analyzer'],
