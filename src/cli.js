@@ -21,10 +21,11 @@ const HELP_TEXT = `
 /** @param {readonly string[]} argv */
 export async function run(argv = process.argv) {
   const argList = Array.from(argv)
+  const importMetaForMeow = import.meta
   let cli
   try {
     cli = meow(HELP_TEXT, {
-      importMeta: import.meta,
+      importMeta: importMetaForMeow,
       allowUnknownFlags: false,
       autoHelp: false,
       autoVersion: false,
@@ -70,7 +71,7 @@ export async function run(argv = process.argv) {
 }
 
 /* istanbul ignore next */
-const isCli = import.meta.url === pathToFileURL(process.argv[1] ?? '').href
+const isCli = pathToFileURL(process.argv[1] ?? '').href === import.meta.url
 /* istanbul ignore next */
 if (isCli) {
   run(process.argv).then((code) => {

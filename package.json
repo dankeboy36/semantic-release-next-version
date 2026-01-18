@@ -44,7 +44,7 @@
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "npm run build:lib && npm run build:cli && npm run build:types",
-    "build:cli": "esbuild src/cli.js --bundle --platform=node --target=node22 --format=esm --minify --sourcemap --external:semantic-release --outfile=dist/cli.js",
+    "build:cli": "esbuild src/cli.js --bundle --platform=node --target=node22 --format=esm --minify --sourcemap --external:semantic-release --banner:js=\"import { createRequire as __createRequire } from 'module'; const require = __createRequire(import.meta.url);\" --outfile=dist/cli.js",
     "build:lib": "npm run build:lib:cjs && npm run build:lib:esm",
     "build:lib:cjs": "esbuild src/index.js --bundle --packages=external --platform=node --target=node22 --format=cjs --minify --sourcemap --outfile=dist/index.cjs",
     "build:lib:esm": "esbuild src/index.js --bundle --packages=external --platform=node --target=node22 --format=esm --minify --sourcemap --outfile=dist/index.js",
