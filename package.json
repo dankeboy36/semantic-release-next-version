@@ -50,13 +50,9 @@
     "build:lib:esm": "esbuild src/index.js --bundle --packages=external --platform=node --target=node22 --format=esm --minify --sourcemap --outfile=dist/index.js",
     "build:types": "cpy index.d.ts ../dist --cwd=src && cpy index.d.ts ../dist --cwd=src --rename=index.d.cts",
     "format": "prettier --write .",
-    "lint": "eslint src --fix",
+    "lint": "eslint src",
     "release": "semantic-release",
-    "test": "vitest run --coverage --reporter verbose",
-    "test:all": "npm run test && npm run test:slow",
-    "pretest:slow": "npm run build:cli",
-    "test:slow": "vitest run --config vitest.config.slow.js --reporter verbose",
-    "versions:update": "node scripts/update-versions.js"
+    "test": "vitest run --coverage --reporter verbose"
   },
   "dependencies": {
     "meow": "^14.0.0",
