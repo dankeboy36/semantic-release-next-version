@@ -41,6 +41,7 @@ fi
 # Create a local bare remote so semantic-release can verify pushes without GitHub auth.
 TMP_REMOTE="$(mktemp -d)/remote.git"
 git init --bare "$TMP_REMOTE" >/dev/null
+git --git-dir "$TMP_REMOTE" symbolic-ref HEAD "refs/heads/$MAIN_BRANCH" >/dev/null 2>&1 || true
 git -C "$ROOT_DIR" remote set-url origin "$TMP_REMOTE"
 git -C "$ROOT_DIR" push origin "HEAD:refs/heads/$MAIN_BRANCH" >/dev/null 2>&1
 if [[ "$CURRENT_BRANCH" != "$MAIN_BRANCH" ]]; then
