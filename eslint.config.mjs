@@ -42,7 +42,6 @@ export default defineConfig([
         { anonymous: 'always', named: 'never', asyncArrow: 'always' },
       ],
       'generator-star-spacing': 'off',
-      '@stylistic/jsx-quotes': ['error', 'prefer-double'],
       'import-x/first': 'error',
       'import-x/order': [
         'error',
