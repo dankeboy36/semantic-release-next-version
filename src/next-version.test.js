@@ -24,6 +24,29 @@ const semanticReleaseMock = /** @type {ReturnType<typeof vi.fn>} */ (
 )
 const execMock = /** @type {ReturnType<typeof vi.fn>} */ (exec)
 
+function mockGit({
+  originUrl = '',
+  branch = 'main',
+  commit = 'abcdef0',
+} = {}) {
+  execMock.mockImplementation(async (_cmd, args) => {
+    if (
+      args?.[0] === 'config' &&
+      args[1] === '--get' &&
+      args[2] === 'remote.origin.url'
+    ) {
+      return { stdout: originUrl, stderr: '', exitCode: 0 }
+    }
+    if (args?.includes('--abbrev-ref')) {
+      return { stdout: `${branch}\n`, stderr: '', exitCode: 0 }
+    }
+    if (args?.includes('--short')) {
+      return { stdout: `${commit}\n`, stderr: '', exitCode: 0 }
+    }
+    throw new Error('exec not mocked')
+  })
+}
+
 describe('getNextVersion', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -63,6 +86,7 @@ describe('getNextVersion', () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '2.0.1' },
     })
+    mockGit()
 
     const version = await getNextVersion({ release: true })
 
@@ -75,8 +99,18 @@ describe('getNextVersion', () => {
       nextRelease: { version: '0.1.0-alpha.2' },
     })
     execMock.mockImplementation(async (_cmd, args) => {
+      if (
+        args?.[0] === 'config' &&
+        args[1] === '--get' &&
+        args[2] === 'remote.origin.url'
+      ) {
+        return { stdout: '', stderr: '', exitCode: 0 }
+      }
       if (args.includes('--abbrev-ref')) {
         return { stdout: 'feature/slugged\n', stderr: '', exitCode: 0 }
+      }
+      if (args.includes('--short')) {
+        throw new Error('git unavailable')
       }
       throw new Error('git unavailable')
     })
@@ -88,7 +122,7 @@ describe('getNextVersion', () => {
 
   it('throws when semantic-release does not return a result', async () => {
     semanticReleaseMock.mockResolvedValue(null)
-    execMock.mockResolvedValue({ stdout: 'main', stderr: '', exitCode: 0 })
+    mockGit()
 
     await expect(getNextVersion()).rejects.toThrow(
       'semantic-release did not return a next version.'
@@ -99,7 +133,7 @@ describe('getNextVersion', () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: 'not-a-version' },
     })
-    execMock.mockResolvedValue({ stdout: 'main', stderr: '', exitCode: 0 })
+    mockGit()
 
     await expect(getNextVersion()).rejects.toThrow(
       'Unable to parse semantic-release version: not-a-version'
@@ -110,7 +144,7 @@ describe('getNextVersion', () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '1.0.0-beta.1' },
     })
-    execMock.mockResolvedValue({ stdout: 'develop', stderr: '', exitCode: 0 })
+    mockGit({ branch: 'develop' })
 
     const version = await getNextVersion({
       branches: [],
@@ -136,7 +170,7 @@ describe('getNextVersion', () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '2.3.4' },
     })
-    execMock.mockResolvedValue({ stdout: 'release', stderr: '', exitCode: 0 })
+    mockGit({ branch: 'release' })
 
     const version = await getNextVersion({
       branches: { name: 'release' },
@@ -160,14 +194,14 @@ describe('getNextVersion', () => {
 
     const version = await getNextVersion()
 
-    expect(version).toBe('3.0.0-preview-preview')
+    expect(version).toBe('3.0.0-preview-main')
   })
 
   it('applies repositoryUrl, tagFormat, and plugins overrides', async () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '4.5.6' },
     })
-    execMock.mockResolvedValue({ stdout: 'main', stderr: '', exitCode: 0 })
+    mockGit()
 
     const version = await getNextVersion({
       repositoryUrl: 'file:///tmp/repo',
@@ -191,7 +225,7 @@ describe('getNextVersion', () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '5.0.0' },
     })
-    execMock.mockResolvedValue({ stdout: 'main', stderr: '', exitCode: 0 })
+    mockGit()
 
     const version = await getNextVersion({
       config: { branches: null },
@@ -260,7 +294,7 @@ describe('getNextVersion', () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '2.0.0' },
     })
-    execMock.mockResolvedValue({ stdout: 'main', stderr: '', exitCode: 0 })
+    mockGit()
 
     const version = await getNextVersion({
       config: { repositoryUrl: undefined },
@@ -280,20 +314,42 @@ describe('getNextVersion', () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '1.0.0' },
     })
-    execMock.mockResolvedValueOnce({
-      stdout: '',
-      stderr: 'fatal: not a git repo',
-      exitCode: 128,
-    })
-    execMock.mockResolvedValueOnce({
-      stdout: 'abcdef0\n',
-      stderr: '',
-      exitCode: 0,
+    execMock.mockImplementation(async () => {
+      throw new Error('fatal: not a git repo')
     })
 
     const version = await getNextVersion()
 
     expect(version).toBe('1.0.0-preview-main')
+    expect(execMock).toHaveBeenCalled()
+  })
+
+  it('uses preview slug when both branch and mainBranch are empty', async () => {
+    semanticReleaseMock.mockResolvedValue({
+      nextRelease: { version: '1.0.0' },
+    })
+    execMock.mockImplementation(async () => {
+      throw new Error('fatal: not a git repo')
+    })
+
+    const version = await getNextVersion({ mainBranch: '' })
+
+    expect(version).toBe('1.0.0-preview-preview')
+  })
+
+  it('continues when git returns a non-zero exit code', async () => {
+    semanticReleaseMock.mockResolvedValue({
+      nextRelease: { version: '1.2.3' },
+    })
+    execMock.mockResolvedValue({
+      stdout: '',
+      stderr: 'fatal',
+      exitCode: 1,
+    })
+
+    const version = await getNextVersion()
+
+    expect(version).toBe('1.2.3-preview-main')
     expect(execMock).toHaveBeenCalled()
   })
 })

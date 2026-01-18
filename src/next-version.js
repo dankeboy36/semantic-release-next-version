@@ -45,6 +45,15 @@ async function getCurrentBranch(cwd) {
   }
 }
 
+/** @param {string} cwd */
+async function getRemoteOriginUrl(cwd) {
+  try {
+    return await runGit(cwd, ['config', '--get', 'remote.origin.url'])
+  } catch {
+    return ''
+  }
+}
+
 /**
  * @param {import('semantic-release').BranchSpec[]} branches
  * @param {string} branchName
@@ -112,14 +121,19 @@ export async function getNextVersion({
   const loadedConfig = {
     ...buildDefaultOptions(mainBranch),
     ...config,
-    ...(repositoryUrl ? { repositoryUrl } : {}),
+    repositoryUrl:
+      repositoryUrl ||
+      config.repositoryUrl ||
+      (await getRemoteOriginUrl(cwd)) ||
+      '.',
     ...(tagFormat ? { tagFormat } : {}),
     ...(plugins ? { plugins } : {}),
   }
   debug(
-    'loadedConfig.branches=%o overrideBranches=%o',
+    'loadedConfig.branches=%o overrideBranches=%o repositoryUrl=%s',
     loadedConfig.branches,
-    overrideBranches
+    overrideBranches,
+    loadedConfig.repositoryUrl
   )
   const currentBranch = (await getCurrentBranch(cwd)) || mainBranch
   debug('currentBranch=%s', currentBranch)
@@ -146,7 +160,7 @@ export async function getNextVersion({
       branches,
       dryRun: true,
       ci: false,
-      repositoryUrl: loadedConfig.repositoryUrl ?? '.',
+      repositoryUrl: loadedConfig.repositoryUrl,
     },
     {
       cwd,
@@ -180,7 +194,7 @@ export async function getNextVersion({
 
   const commitHash = await resolveCommitHash(
     cwd,
-    toPrereleaseId((await getCurrentBranch(cwd)) || 'preview')
+    toPrereleaseId(currentBranch || 'preview')
   )
 
   return `${baseVersion}-preview-${commitHash}`
