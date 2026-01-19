@@ -403,7 +403,10 @@ describe('getNextVersion', () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '3.1.0' },
     })
-    mockGit({ originUrl: 'https://github.com/example/repo.git', branch: 'main' })
+    mockGit({
+      originUrl: 'https://github.com/example/repo.git',
+      branch: 'main',
+    })
     delete process.env.GITHUB_TOKEN
     delete process.env.GH_TOKEN
     delete process.env.GIT_TOKEN
