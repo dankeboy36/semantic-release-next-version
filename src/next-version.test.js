@@ -26,6 +26,15 @@ const execMock = /** @type {ReturnType<typeof vi.fn>} */ (exec)
 
 function mockGit({ originUrl = '', branch = 'main', commit = 'abcdef0' } = {}) {
   execMock.mockImplementation(async (_cmd, args) => {
+    if (args?.[0] === 'init' && args[1] === '--bare') {
+      return { stdout: '', stderr: '', exitCode: 0 }
+    }
+    if (args?.[0] === '--git-dir' && args[2] === 'symbolic-ref') {
+      return { stdout: '', stderr: '', exitCode: 0 }
+    }
+    if (args?.[0] === 'push') {
+      return { stdout: '', stderr: '', exitCode: 0 }
+    }
     if (
       args?.[0] === 'config' &&
       args[1] === '--get' &&
@@ -39,7 +48,7 @@ function mockGit({ originUrl = '', branch = 'main', commit = 'abcdef0' } = {}) {
     if (args?.includes('--short')) {
       return { stdout: `${commit}\n`, stderr: '', exitCode: 0 }
     }
-    throw new Error('exec not mocked')
+    return { stdout: '', stderr: '', exitCode: 0 }
   })
 }
 
@@ -333,6 +342,25 @@ describe('getNextVersion', () => {
     expect(version).toBe('1.0.0-preview-preview')
   })
 
+  it('uses local repositoryUrl for preview to avoid auth checks', async () => {
+    semanticReleaseMock.mockResolvedValue({
+      nextRelease: { version: '2.0.0' },
+    })
+    mockGit({ originUrl: 'https://github.com/example/repo.git' })
+
+    const version = await getNextVersion()
+    const calledOptions = semanticReleaseMock.mock.calls[0][0]
+
+    expect(version).toBe('2.0.0-preview-abcdef0')
+    expect(semanticReleaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repositoryUrl: expect.stringMatching(/srnv-.*remote\.git$/),
+      }),
+      expect.any(Object)
+    )
+    expect(calledOptions.repositoryUrl).not.toContain('github.com')
+  })
+
   it('continues when git returns a non-zero exit code', async () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '1.2.3' },
@@ -347,5 +375,27 @@ describe('getNextVersion', () => {
 
     expect(version).toBe('1.2.3-preview-main')
     expect(execMock).toHaveBeenCalled()
+  })
+
+  it('pushes the current branch when creating a temp remote', async () => {
+    semanticReleaseMock.mockResolvedValue({
+      nextRelease: { version: '1.0.0' },
+    })
+    mockGit({ branch: 'feature/temp-remote' })
+
+    process.env.GITHUB_HEAD_REF = 'feature/temp-remote'
+    process.env.GITHUB_REF = 'refs/heads/feature/temp-remote'
+
+    await getNextVersion()
+
+    expect(
+      execMock.mock.calls.some(
+        ([cmd, args]) =>
+          cmd === 'git' &&
+          Array.isArray(args) &&
+          args[0] === 'push' &&
+          args.includes('HEAD:refs/heads/feature/temp-remote')
+      )
+    ).toBe(true)
   })
 })
