@@ -95,6 +95,8 @@ jobs:
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        env:
+          DEBUG: semantic-release-next-version,semantic-release:* # to enable debugging
 ```
 
 Now other jobs can use the version:
