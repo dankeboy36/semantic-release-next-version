@@ -6,6 +6,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 TARBALL=""
 TMP_DIR=""
 TMP_REMOTE=""
+ORIGINAL_REMOTE="$(git -C "$ROOT_DIR" remote get-url origin 2>/dev/null || true)"
 
 MAIN_BRANCH="${GITHUB_BASE_REF:-main}"
 CURRENT_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}}"
@@ -22,6 +23,9 @@ cleanup() {
   fi
   if [[ -n "$TMP_REMOTE" && -d "$TMP_REMOTE" ]]; then
     rm -rf "$TMP_REMOTE"
+  fi
+  if [[ -n "$ORIGINAL_REMOTE" ]]; then
+    git -C "$ROOT_DIR" remote set-url origin "$ORIGINAL_REMOTE" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
