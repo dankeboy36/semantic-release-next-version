@@ -398,4 +398,23 @@ describe('getNextVersion', () => {
       )
     ).toBe(true)
   })
+
+  it('uses a temp remote for release when github auth is absent', async () => {
+    semanticReleaseMock.mockResolvedValue({
+      nextRelease: { version: '3.1.0' },
+    })
+    mockGit({
+      originUrl: 'https://github.com/example/repo.git',
+      branch: 'main',
+    })
+    delete process.env.GITHUB_TOKEN
+    delete process.env.GH_TOKEN
+    delete process.env.GIT_TOKEN
+
+    const version = await getNextVersion({ release: true })
+    const calledOptions = semanticReleaseMock.mock.calls[0][0]
+
+    expect(version).toBe('3.1.0')
+    expect(calledOptions.repositoryUrl).toMatch(/srnv-.*remote\.git$/)
+  })
 })

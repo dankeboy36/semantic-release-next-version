@@ -11,6 +11,7 @@ import { exec } from 'tinyexec'
 
 const DEFAULT_MAIN_BRANCH = 'main'
 const debug = createDebug('semantic-release-next-version')
+const TOKEN_ENV_VARS = ['GITHUB_TOKEN', 'GH_TOKEN', 'GIT_TOKEN']
 
 /** @param {string} mainBranch */
 function buildDefaultOptions(mainBranch) {
@@ -57,6 +58,15 @@ async function getRemoteOriginUrl(cwd) {
   } catch {
     return ''
   }
+}
+
+/** @param {string} url */
+function isGithubHttpUrl(url) {
+  return /^https?:\/\/[^/]*github\.com[:/]/i.test(url)
+}
+
+function hasGitToken() {
+  return TOKEN_ENV_VARS.some((key) => process.env[key])
 }
 
 /**
@@ -169,7 +179,11 @@ export async function getNextVersion({
     (release ? await getRemoteOriginUrl(cwd) : '.') ||
     '.'
   let tempRemoteRoot = ''
-  if (!release && effectiveRepoUrl === '.') {
+  const needsLocalRemote =
+    (!release && effectiveRepoUrl === '.') ||
+    (release && isGithubHttpUrl(effectiveRepoUrl) && !hasGitToken())
+
+  if (needsLocalRemote) {
     try {
       const { remote, root } = await createTempRemote(
         cwd,
