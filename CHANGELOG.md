@@ -1,3 +1,10 @@
+## [0.1.2](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.1...0.1.2) (2026-01-19)
+
+
+### Bug Fixes
+
+* use temp remote when GH auth is unavailable ([#4](https://github.com/dankeboy36/semantic-release-next-version/issues/4)) ([dfb391d](https://github.com/dankeboy36/semantic-release-next-version/commit/dfb391d45e4cda8d6f9994ea86d95f0d7a6d563d))
+
 ## [0.1.1](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.0...0.1.1) (2026-01-19)
 
 
