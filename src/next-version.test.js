@@ -333,6 +333,42 @@ describe('getNextVersion', () => {
     expect(version).toBe('1.0.0-preview-preview')
   })
 
+  it('uses local repositoryUrl for preview to avoid auth checks', async () => {
+    semanticReleaseMock.mockResolvedValue({
+      nextRelease: { version: '2.0.0' },
+    })
+    execMock.mockImplementation(async (_cmd, args) => {
+      if (
+        args?.[0] === 'config' &&
+        args[1] === '--get' &&
+        args[2] === 'remote.origin.url'
+      ) {
+        return {
+          stdout: 'https://github.com/example/repo.git',
+          stderr: '',
+          exitCode: 0,
+        }
+      }
+      if (args?.includes('--abbrev-ref')) {
+        return { stdout: 'main\n', stderr: '', exitCode: 0 }
+      }
+      if (args?.includes('--short')) {
+        return { stdout: 'abcdef0\n', stderr: '', exitCode: 0 }
+      }
+      throw new Error('exec not mocked')
+    })
+
+    const version = await getNextVersion()
+
+    expect(version).toBe('2.0.0-preview-abcdef0')
+    expect(semanticReleaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repositoryUrl: '.',
+      }),
+      expect.any(Object)
+    )
+  })
+
   it('continues when git returns a non-zero exit code', async () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '1.2.3' },

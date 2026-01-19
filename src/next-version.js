@@ -118,14 +118,16 @@ export async function getNextVersion({
     process.env.GITHUB_REF_NAME = process.env.GITHUB_HEAD_REF
   }
 
+  const effectiveRepoUrl =
+    repositoryUrl ||
+    config.repositoryUrl ||
+    (release ? await getRemoteOriginUrl(cwd) : '.') ||
+    '.'
+
   const loadedConfig = {
     ...buildDefaultOptions(mainBranch),
     ...config,
-    repositoryUrl:
-      repositoryUrl ||
-      config.repositoryUrl ||
-      (await getRemoteOriginUrl(cwd)) ||
-      '.',
+    repositoryUrl: effectiveRepoUrl,
     ...(tagFormat ? { tagFormat } : {}),
     ...(plugins ? { plugins } : {}),
   }
