@@ -1,3 +1,10 @@
+## [0.1.1](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.0...0.1.1) (2026-01-19)
+
+
+### Bug Fixes
+
+* avoid remote auth on preview runs ([#3](https://github.com/dankeboy36/semantic-release-next-version/issues/3)) ([d2c6158](https://github.com/dankeboy36/semantic-release-next-version/commit/d2c615804a235b57e60f49f5f14b158bb51c5f9e))
+
 # [0.1.0](https://github.com/dankeboy36/semantic-release-next-version/compare/0.0.1...0.1.0) (2026-01-19)
 
 

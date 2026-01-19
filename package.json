@@ -1,6 +1,6 @@
 {
   "name": "semantic-release-next-version",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Compute the next semantic-release version in dry-run mode for CI and local packaging, without pushing tags or needing tokens",
   "keywords": [
     "actions",
