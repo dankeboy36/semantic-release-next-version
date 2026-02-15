@@ -417,4 +417,22 @@ describe('getNextVersion', () => {
     expect(version).toBe('3.1.0')
     expect(calledOptions.repositoryUrl).toMatch(/srnv-.*remote\.git$/)
   })
+
+  it('throws a clear error for shallow clones', async () => {
+    mockGit({ branch: 'main' })
+    execMock.mockImplementation(async (_cmd, args) => {
+      if (args?.includes('--is-shallow-repository')) {
+        return { stdout: 'true\n', stderr: '', exitCode: 0 }
+      }
+      if (args?.includes('--abbrev-ref')) {
+        return { stdout: 'main\n', stderr: '', exitCode: 0 }
+      }
+      return { stdout: '', stderr: '', exitCode: 0 }
+    })
+
+    await expect(getNextVersion()).rejects.toThrow(
+      'Shallow git clone detected. This tool requires full git history and tags; use actions/checkout with fetch-depth: 0 (or run git fetch --unshallow --tags).'
+    )
+    expect(semanticReleaseMock).not.toHaveBeenCalled()
+  })
 })
