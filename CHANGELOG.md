@@ -1,3 +1,10 @@
+## [0.1.3](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.2...0.1.3) (2026-02-15)
+
+
+### Bug Fixes
+
+* fail fast on shallow clones with clear guidance ([#7](https://github.com/dankeboy36/semantic-release-next-version/issues/7)) ([cc1e243](https://github.com/dankeboy36/semantic-release-next-version/commit/cc1e24394aa16dc2ef664ef432034d27a9cbdc31))
+
 ## [0.1.2](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.1...0.1.2) (2026-01-19)
 
 
