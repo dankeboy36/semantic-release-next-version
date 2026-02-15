@@ -60,6 +60,17 @@ async function getRemoteOriginUrl(cwd) {
   }
 }
 
+/** @param {string} cwd */
+async function isShallowRepository(cwd) {
+  try {
+    return (
+      (await runGit(cwd, ['rev-parse', '--is-shallow-repository'])) === 'true'
+    )
+  } catch {
+    return false
+  }
+}
+
 /** @param {string} url */
 function isGithubHttpUrl(url) {
   return /^https?:\/\/[^/]*github\.com[:/]/i.test(url)
@@ -80,25 +91,27 @@ async function createTempRemote(cwd, currentBranch, mainBranch) {
 
   await runGit(cwd, ['init', '--bare', remote])
   debug('created temp remote %s', remote)
-  await runGit(cwd, [
-    '--git-dir',
-    remote,
-    'symbolic-ref',
-    'HEAD',
-    `refs/heads/${mainBranch}`,
-  ]).catch(() => {})
-  await runGit(cwd, ['push', remote, `HEAD:refs/heads/${mainBranch}`]).catch(
-    () => {}
-  )
+  try {
+    await runGit(cwd, [
+      '--git-dir',
+      remote,
+      'symbolic-ref',
+      'HEAD',
+      `refs/heads/${mainBranch}`,
+    ])
+  } catch {}
+  try {
+    await runGit(cwd, ['push', remote, `HEAD:refs/heads/${mainBranch}`])
+  } catch {}
   if (currentBranch && currentBranch !== mainBranch) {
     debug('pushing current branch %s to temp remote', currentBranch)
-    await runGit(cwd, [
-      'push',
-      remote,
-      `HEAD:refs/heads/${currentBranch}`,
-    ]).catch(() => {})
+    try {
+      await runGit(cwd, ['push', remote, `HEAD:refs/heads/${currentBranch}`])
+    } catch {}
   }
-  await runGit(cwd, ['push', remote, '--tags']).catch(() => {})
+  try {
+    await runGit(cwd, ['push', remote, '--tags'])
+  } catch {}
 
   return { remote, root }
 }
@@ -172,6 +185,12 @@ export async function getNextVersion({
 
   const currentBranch = (await getCurrentBranch(cwd)) || mainBranch
   debug('currentBranch=%s', currentBranch)
+
+  if (await isShallowRepository(cwd)) {
+    throw new Error(
+      'Shallow git clone detected. This tool requires full git history and tags; use actions/checkout with fetch-depth: 0 (or run git fetch --unshallow --tags).'
+    )
+  }
 
   let effectiveRepoUrl =
     repositoryUrl ||
@@ -254,9 +273,9 @@ export async function getNextVersion({
     )
   } finally {
     if (tempRemoteRoot) {
-      await fs
-        .rm(tempRemoteRoot, { recursive: true, force: true })
-        .catch(() => {})
+      try {
+        await fs.rm(tempRemoteRoot, { recursive: true, force: true })
+      } catch {}
     }
   }
 
