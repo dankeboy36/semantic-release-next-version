@@ -105,6 +105,7 @@ fi
 git -C "$TMP_NO_RELEASE_REPO" push origin --tags >/dev/null 2>&1 || true
 NO_RELEASE_HASH="$(git -C "$TMP_NO_RELEASE_REPO" rev-parse --short HEAD)"
 NO_RELEASE_PREVIEW="$(
+  GITHUB_SHA="$NO_RELEASE_HASH" \
   node "$ROOT_DIR/bin/cli.cjs" \
     --cwd "$TMP_NO_RELEASE_REPO" \
     --default-branch "$DEFAULT_BRANCH"
@@ -114,7 +115,7 @@ if [[ "$NO_RELEASE_PREVIEW" != "${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" ]]; 
   echo "Expected: ${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" >&2
   exit 1
 fi
-if node "$ROOT_DIR/bin/cli.cjs" \
+if GITHUB_SHA="$NO_RELEASE_HASH" node "$ROOT_DIR/bin/cli.cjs" \
   --release \
   --cwd "$TMP_NO_RELEASE_REPO" \
   --default-branch "$DEFAULT_BRANCH" >/dev/null 2>&1; then
@@ -151,6 +152,7 @@ cp "$ROOT_DIR/$TARBALL" "$TMP_DIR/"
     GITHUB_REF_NAME="$CURRENT_BRANCH" \
     GITHUB_HEAD_REF="$CURRENT_BRANCH" \
     GITHUB_BASE_REF="$DEFAULT_BRANCH" \
+    GITHUB_SHA="$NO_RELEASE_HASH" \
     npx --yes --package="./$TARBALL" next-version-helper \
       --cwd "$TMP_NO_RELEASE_REPO" \
       --default-branch "$DEFAULT_BRANCH"
@@ -164,6 +166,7 @@ cp "$ROOT_DIR/$TARBALL" "$TMP_DIR/"
     GITHUB_REF_NAME="$CURRENT_BRANCH" \
     GITHUB_HEAD_REF="$CURRENT_BRANCH" \
     GITHUB_BASE_REF="$DEFAULT_BRANCH" \
+    GITHUB_SHA="$NO_RELEASE_HASH" \
     npx --yes --package="./$TARBALL" next-version-helper \
       --release \
       --cwd "$TMP_NO_RELEASE_REPO" \
