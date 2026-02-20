@@ -90,13 +90,9 @@ jobs:
           MODE=""
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then MODE="--release"; fi
           VERSION=$(npx next-version-helper $MODE)
-          if [ -z "$VERSION" ]; then
-            echo "semantic-release did not return a next version." >&2
-            exit 1
-          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        env:
-          DEBUG: semantic-release-next-version,semantic-release:* # to enable debugging
+        # env:
+        #   DEBUG: semantic-release-next-version,semantic-release:* # enable for debugging
 ```
 
 Now other jobs can use the version:
@@ -131,7 +127,7 @@ import { getNextVersion } from 'semantic-release-next-version'
 const version = await getNextVersion({
   cwd: process.cwd(),
   release: false,
-  mainBranch: 'main', // override if your primary branch differs
+  defaultBranch: 'main', // override if your primary branch differs
 })
 console.log(version)
 ```
@@ -142,7 +138,8 @@ console.log(version)
 
 - `--release` / `-r`: return plain `x.y.z` (no preview suffix).
 - `--cwd <path>`: run against a different working directory (useful when you call from a temp folder).
-- `--main-branch <name>`: set the primary release branch (default: `main`).
+- `--default-branch <name>`: set the primary release branch (default: `main`).
+- `--main-branch <name>`: deprecated alias for `--default-branch`.
 - `--help` / `--version`
 
 ---
@@ -151,9 +148,11 @@ console.log(version)
 
 - On `main` branch with `--release` → returns `x.y.z`.
 - On any branch without `--release` → returns `x.y.z-preview-<hash>`.
-- If there is no new release → exits with an error
+- If there is no new release in preview mode → returns `<currentVersion>-preview-<hash>`.
+- If there is no new release with `--release` → exits with an error.
+- `currentVersion` is resolved from the latest semantic version tag, then falls back to `package.json` version.
 - Uses `@semantic-release/commit-analyzer` by default (must be installed).
-- Main branch defaults to `main`; override with `--main-branch` or `mainBranch` in code.
+- Default branch defaults to `main`; override with `--default-branch` or `defaultBranch` in code.
 - `--cwd` lets you run the CLI outside the repo root (for example after `npm pack`).
 
 ---
@@ -177,4 +176,4 @@ MIT
 
 - Enable verbose logs by setting `DEBUG=semantic-release-next-version` (optionally add `,semantic-release:*` for semantic-release internals).
 - In GitHub Actions, you can set `DEBUG` in a step that runs the CLI (the CI smoke test does this).
-- When running from a packed tarball or temp dir, pass `--cwd /path/to/repo` and `--main-branch <branch>` so branch detection stays correct.
+- When running from a packed tarball or temp dir, pass `--cwd /path/to/repo` and `--default-branch <branch>` so branch detection stays correct.

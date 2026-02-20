@@ -9,16 +9,21 @@ import semanticRelease from 'semantic-release'
 import semver from 'semver'
 import { exec } from 'tinyexec'
 
-const DEFAULT_MAIN_BRANCH = 'main'
+const DEFAULT_BRANCH = 'main'
 const debug = createDebug('semantic-release-next-version')
 const TOKEN_ENV_VARS = ['GITHUB_TOKEN', 'GH_TOKEN', 'GIT_TOKEN']
+const TAG_FORMAT_VERSION_MARKER = '__srnv_version_marker__'
+const TAG_FORMAT_VERSION_PATTERNS = [
+  /\$\{\s*version\s*\}/g,
+  /<%=\s*version\s*%>/g,
+]
 
-/** @param {string} mainBranch */
-function buildDefaultOptions(mainBranch) {
+/** @param {string} defaultBranch */
+function buildDefaultOptions(defaultBranch) {
   /** @type {import('semantic-release').Options} */
   return {
     repositoryUrl: '.',
-    branches: [mainBranch, { name: '*', prerelease: true }],
+    branches: [defaultBranch, { name: '*', prerelease: true }],
     // eslint-disable-next-line no-template-curly-in-string
     tagFormat: '${version}',
     plugins: ['@semantic-release/commit-analyzer'],
@@ -83,9 +88,9 @@ function hasGitToken() {
 /**
  * @param {string} cwd
  * @param {string} currentBranch
- * @param {string} mainBranch
+ * @param {string} defaultBranch
  */
-async function createTempRemote(cwd, currentBranch, mainBranch) {
+async function createTempRemote(cwd, currentBranch, defaultBranch) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'srnv-'))
   const remote = path.join(root, 'remote.git')
 
@@ -97,13 +102,13 @@ async function createTempRemote(cwd, currentBranch, mainBranch) {
       remote,
       'symbolic-ref',
       'HEAD',
-      `refs/heads/${mainBranch}`,
+      `refs/heads/${defaultBranch}`,
     ])
   } catch {}
   try {
-    await runGit(cwd, ['push', remote, `HEAD:refs/heads/${mainBranch}`])
+    await runGit(cwd, ['push', remote, `HEAD:refs/heads/${defaultBranch}`])
   } catch {}
-  if (currentBranch && currentBranch !== mainBranch) {
+  if (currentBranch && currentBranch !== defaultBranch) {
     debug('pushing current branch %s to temp remote', currentBranch)
     try {
       await runGit(cwd, ['push', remote, `HEAD:refs/heads/${currentBranch}`])
@@ -137,6 +142,73 @@ function toPrereleaseId(branchName) {
 }
 
 /**
+ * @param {string} tag
+ * @param {string} tagFormat
+ */
+function parseVersionFromTag(tag, tagFormat) {
+  if (!tag) return ''
+
+  if (tagFormat) {
+    let normalizedTagFormat = tagFormat
+    let replacements = 0
+    for (const pattern of TAG_FORMAT_VERSION_PATTERNS) {
+      normalizedTagFormat = normalizedTagFormat.replace(pattern, () => {
+        replacements += 1
+        return TAG_FORMAT_VERSION_MARKER
+      })
+    }
+
+    if (replacements === 1) {
+      const [prefix, suffix] = normalizedTagFormat.split(
+        TAG_FORMAT_VERSION_MARKER
+      )
+      if (tag.startsWith(prefix) && tag.endsWith(suffix)) {
+        const endIndex = suffix ? tag.length - suffix.length : tag.length
+        if (endIndex >= prefix.length) {
+          const versionSegment = tag.slice(prefix.length, endIndex)
+          const parsed = semver.parse(versionSegment)
+          if (parsed) return `${parsed.major}.${parsed.minor}.${parsed.patch}`
+        }
+      }
+    }
+  }
+
+  const cleaned = semver.clean(tag)
+  const parsed = semver.parse(cleaned || '')
+  if (!parsed) return ''
+  return `${parsed.major}.${parsed.minor}.${parsed.patch}`
+}
+
+/**
+ * @param {string} cwd
+ * @param {string} tagFormat
+ */
+async function resolveCurrentBaseVersion(cwd, tagFormat) {
+  try {
+    const rawTags = await runGit(cwd, ['tag', '--list'])
+    const versions = rawTags
+      .split('\n')
+      .map((tag) => parseVersionFromTag(tag.trim(), tagFormat))
+      .filter(Boolean)
+    if (versions.length > 0) {
+      return semver.rsort([...new Set(versions)])[0]
+    }
+  } catch {}
+
+  try {
+    const packageJsonPath = path.join(cwd, 'package.json')
+    const rawPackageJson = await fs.readFile(packageJsonPath, 'utf8')
+    const packageVersion = JSON.parse(rawPackageJson)?.version
+    const parsed = semver.parse(packageVersion)
+    if (parsed) return `${parsed.major}.${parsed.minor}.${parsed.patch}`
+  } catch {}
+
+  throw new Error(
+    'semantic-release did not return a next version and no valid version was found in git tags or package.json.'
+  )
+}
+
+/**
  * @param {string} cwd
  * @param {string} fallback
  */
@@ -164,10 +236,17 @@ export async function getNextVersion({
   tagFormat,
   plugins,
   release = false,
-  mainBranch = DEFAULT_MAIN_BRANCH,
+  defaultBranch,
+  mainBranch,
 } = {}) {
+  const resolvedDefaultBranch = defaultBranch ?? mainBranch ?? DEFAULT_BRANCH
   debug('start getNextVersion')
-  debug('cwd=%s mainBranch=%s release=%s', cwd, mainBranch, release)
+  debug(
+    'cwd=%s defaultBranch=%s release=%s',
+    cwd,
+    resolvedDefaultBranch,
+    release
+  )
   debug(
     'env GITHUB_HEAD_REF=%s GITHUB_REF=%s GITHUB_REF_NAME=%s',
     process.env.GITHUB_HEAD_REF,
@@ -183,7 +262,7 @@ export async function getNextVersion({
     process.env.GITHUB_REF_NAME = process.env.GITHUB_HEAD_REF
   }
 
-  const currentBranch = (await getCurrentBranch(cwd)) || mainBranch
+  const currentBranch = (await getCurrentBranch(cwd)) || resolvedDefaultBranch
   debug('currentBranch=%s', currentBranch)
 
   if (await isShallowRepository(cwd)) {
@@ -207,7 +286,7 @@ export async function getNextVersion({
       const { remote, root } = await createTempRemote(
         cwd,
         currentBranch,
-        mainBranch
+        resolvedDefaultBranch
       )
       effectiveRepoUrl = remote
       tempRemoteRoot = root
@@ -216,8 +295,9 @@ export async function getNextVersion({
     }
   }
 
+  /** @type {import('semantic-release').Options} */
   const loadedConfig = {
-    ...buildDefaultOptions(mainBranch),
+    ...buildDefaultOptions(resolvedDefaultBranch),
     ...config,
     repositoryUrl: effectiveRepoUrl,
     ...(tagFormat ? { tagFormat } : {}),
@@ -241,7 +321,9 @@ export async function getNextVersion({
     branches.push({
       name: currentBranch,
       prerelease:
-        currentBranch !== mainBranch ? toPrereleaseId(currentBranch) : false,
+        currentBranch !== resolvedDefaultBranch
+          ? toPrereleaseId(currentBranch)
+          : false,
     })
   }
   debug('final branches=%o', branches)
@@ -280,6 +362,17 @@ export async function getNextVersion({
   }
 
   if (!result) {
+    if (!release) {
+      const baseVersion = await resolveCurrentBaseVersion(
+        cwd,
+        loadedConfig.tagFormat
+      )
+      const commitHash = await resolveCommitHash(
+        cwd,
+        toPrereleaseId(currentBranch || 'preview')
+      )
+      return `${baseVersion}-preview-${commitHash}`
+    }
     throw new Error('semantic-release did not return a next version.')
   }
 

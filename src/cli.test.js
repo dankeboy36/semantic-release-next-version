@@ -40,6 +40,7 @@ describe('cli', () => {
     expect(exitCode).toBe(0)
     expect(getNextVersionMock).toHaveBeenCalledWith({
       cwd: undefined,
+      defaultBranch: undefined,
       release: false,
     })
     expect(logSpy).toHaveBeenCalledWith('1.0.0-preview-abc1234')
@@ -53,6 +54,7 @@ describe('cli', () => {
     expect(exitCode).toBe(0)
     expect(getNextVersionMock).toHaveBeenCalledWith({
       cwd: undefined,
+      defaultBranch: undefined,
       release: true,
     })
   })
@@ -65,6 +67,7 @@ describe('cli', () => {
     expect(exitCode).toBe(0)
     expect(getNextVersionMock).toHaveBeenCalledWith({
       cwd: '/tmp/project',
+      defaultBranch: undefined,
       release: false,
     })
   })
@@ -106,7 +109,25 @@ describe('cli', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('9.9.9'))
   })
 
-  it('passes through custom main branch', async () => {
+  it('passes through custom default branch', async () => {
+    getNextVersionMock.mockResolvedValue('1.2.3')
+
+    const exitCode = await run([
+      'node',
+      'cli.js',
+      '--default-branch',
+      'develop',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(getNextVersionMock).toHaveBeenCalledWith({
+      cwd: undefined,
+      release: false,
+      defaultBranch: 'develop',
+    })
+  })
+
+  it('supports deprecated --main-branch alias', async () => {
     getNextVersionMock.mockResolvedValue('1.2.3')
 
     const exitCode = await run(['node', 'cli.js', '--main-branch', 'develop'])
@@ -115,7 +136,7 @@ describe('cli', () => {
     expect(getNextVersionMock).toHaveBeenCalledWith({
       cwd: undefined,
       release: false,
-      mainBranch: 'develop',
+      defaultBranch: 'develop',
     })
   })
 
@@ -127,8 +148,8 @@ describe('cli', () => {
     expect(exitCode).toBe(0)
     expect(getNextVersionMock).toHaveBeenCalledWith({
       cwd: undefined,
+      defaultBranch: undefined,
       release: false,
-      mainBranch: undefined,
     })
   })
 

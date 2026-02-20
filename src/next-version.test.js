@@ -1,7 +1,11 @@
 // @ts-check
 
-import { exec } from 'tinyexec'
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
 import semanticRelease from 'semantic-release'
+import { exec } from 'tinyexec'
 
 import { getNextVersion } from './next-version.js'
 
@@ -24,7 +28,12 @@ const semanticReleaseMock = /** @type {ReturnType<typeof vi.fn>} */ (
 )
 const execMock = /** @type {ReturnType<typeof vi.fn>} */ (exec)
 
-function mockGit({ originUrl = '', branch = 'main', commit = 'abcdef0' } = {}) {
+function mockGit({
+  originUrl = '',
+  branch = 'main',
+  commit = 'abcdef0',
+  tags = ['0.0.9'],
+} = {}) {
   execMock.mockImplementation(async (_cmd, args) => {
     if (args?.[0] === 'init' && args[1] === '--bare') {
       return { stdout: '', stderr: '', exitCode: 0 }
@@ -45,8 +54,18 @@ function mockGit({ originUrl = '', branch = 'main', commit = 'abcdef0' } = {}) {
     if (args?.includes('--abbrev-ref')) {
       return { stdout: `${branch}\n`, stderr: '', exitCode: 0 }
     }
+    if (args?.includes('--is-shallow-repository')) {
+      return { stdout: 'false\n', stderr: '', exitCode: 0 }
+    }
     if (args?.includes('--short')) {
       return { stdout: `${commit}\n`, stderr: '', exitCode: 0 }
+    }
+    if (args?.[0] === 'tag' && args[1] === '--list') {
+      return {
+        stdout: tags.length ? `${tags.join('\n')}\n` : '',
+        stderr: '',
+        exitCode: 0,
+      }
     }
     return { stdout: '', stderr: '', exitCode: 0 }
   })
@@ -125,13 +144,169 @@ describe('getNextVersion', () => {
     expect(version).toBe('0.1.0-preview-feature-slugged')
   })
 
-  it('throws when semantic-release does not return a result', async () => {
+  it('returns a preview from the current tag when no release is produced', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: ['0.0.9'] })
+
+    const version = await getNextVersion()
+
+    expect(version).toBe('0.0.9-preview-abcdef0')
+  })
+
+  it.each([
+    {
+      name: 'semantic-release default tag format',
+      tagFormat: 'v${version}',
+      tag: 'v1.2.3',
+      expected: '1.2.3-preview-abcdef0',
+    },
+    {
+      name: 'this package default tag format',
+      tagFormat: '${version}',
+      tag: '1.2.3',
+      expected: '1.2.3-preview-abcdef0',
+    },
+    {
+      name: 'custom tag format',
+      tagFormat: 'release-<%= version %>-prod',
+      tag: 'release-1.2.3-prod',
+      expected: '1.2.3-preview-abcdef0',
+    },
+  ])(
+    'derives fallback preview version with $name',
+    async ({ tagFormat, tag, expected }) => {
+      semanticReleaseMock.mockResolvedValue(null)
+      mockGit({ tags: [tag] })
+
+      const version = await getNextVersion({ config: { tagFormat } })
+
+      expect(version).toBe(expected)
+    }
+  )
+
+  it('falls back to plain semver tag parsing when tagFormat is undefined', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: ['1.2.3'] })
+
+    const version = await getNextVersion({
+      config: { tagFormat: undefined },
+    })
+
+    expect(version).toBe('1.2.3-preview-abcdef0')
+  })
+
+  it('falls back when tagFormat contains multiple version placeholders', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: ['2.3.4'] })
+
+    const version = await getNextVersion({
+      config: { tagFormat: '${version}-${version}' },
+    })
+
+    expect(version).toBe('2.3.4-preview-abcdef0')
+  })
+
+  it('falls back to semver.clean parsing when tagFormat extraction does not match', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: ['v2.3.4'] })
+
+    const version = await getNextVersion({
+      config: { tagFormat: 'release-${version}' },
+    })
+
+    expect(version).toBe('2.3.4-preview-abcdef0')
+  })
+
+  it('falls back when tagFormat boundaries overlap and extracted version is empty', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: ['aa'] })
+
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'srnv-overlap-'))
+    try {
+      await fs.writeFile(
+        path.join(cwd, 'package.json'),
+        JSON.stringify({ version: '4.5.6' }),
+        'utf8'
+      )
+
+      const version = await getNextVersion({
+        cwd,
+        config: { tagFormat: 'aa${version}a' },
+      })
+      expect(version).toBe('4.5.6-preview-abcdef0')
+    } finally {
+      await fs.rm(cwd, { recursive: true, force: true })
+    }
+  })
+
+  it('falls back when extracted tag version is not semver', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: ['release-not-semver-prod'] })
+
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'srnv-invalid-tag-'))
+    try {
+      await fs.writeFile(
+        path.join(cwd, 'package.json'),
+        JSON.stringify({ version: '7.8.9' }),
+        'utf8'
+      )
+
+      const version = await getNextVersion({
+        cwd,
+        config: { tagFormat: 'release-${version}-prod' },
+      })
+      expect(version).toBe('7.8.9-preview-abcdef0')
+    } finally {
+      await fs.rm(cwd, { recursive: true, force: true })
+    }
+  })
+
+  it('throws in release mode when semantic-release does not return a result', async () => {
     semanticReleaseMock.mockResolvedValue(null)
     mockGit()
 
-    await expect(getNextVersion()).rejects.toThrow(
+    await expect(getNextVersion({ release: true })).rejects.toThrow(
       'semantic-release did not return a next version.'
     )
+  })
+
+  it('falls back to package.json when tags do not contain a semantic version', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    execMock.mockRejectedValue(new Error('git unavailable'))
+
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'srnv-version-'))
+    try {
+      await fs.writeFile(
+        path.join(cwd, 'package.json'),
+        JSON.stringify({ version: '9.8.7-beta.1' }),
+        'utf8'
+      )
+
+      const version = await getNextVersion({ cwd })
+      expect(version).toBe('9.8.7-preview-main')
+    } finally {
+      await fs.rm(cwd, { recursive: true, force: true })
+    }
+  })
+
+  it('throws when neither tags nor package.json contain a valid version', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: [] })
+
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'srnv-no-version-'))
+    try {
+      await fs.writeFile(
+        path.join(cwd, 'package.json'),
+        JSON.stringify({ version: 'not-semver' }),
+        'utf8'
+      )
+
+      await expect(getNextVersion({ cwd })).rejects.toThrow(
+        'semantic-release did not return a next version and no valid version was found in git tags or package.json.'
+      )
+    } finally {
+      await fs.rm(cwd, { recursive: true, force: true })
+    }
   })
 
   it('throws when semantic-release returns an unparsable version', async () => {
@@ -145,7 +320,7 @@ describe('getNextVersion', () => {
     )
   })
 
-  it('respects custom main branch when adding inferred branch config', async () => {
+  it('respects custom default branch when adding inferred branch config', async () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '1.0.0-beta.1' },
     })
@@ -153,7 +328,7 @@ describe('getNextVersion', () => {
 
     const version = await getNextVersion({
       branches: [],
-      mainBranch: 'develop',
+      defaultBranch: 'develop',
       release: true,
     })
 
@@ -329,7 +504,7 @@ describe('getNextVersion', () => {
     expect(execMock).toHaveBeenCalled()
   })
 
-  it('uses preview slug when both branch and mainBranch are empty', async () => {
+  it('uses preview slug when both branch and defaultBranch are empty', async () => {
     semanticReleaseMock.mockResolvedValue({
       nextRelease: { version: '1.0.0' },
     })
@@ -337,9 +512,50 @@ describe('getNextVersion', () => {
       throw new Error('fatal: not a git repo')
     })
 
-    const version = await getNextVersion({ mainBranch: '' })
+    const version = await getNextVersion({ defaultBranch: '' })
 
     expect(version).toBe('1.0.0-preview-preview')
+  })
+
+  it('uses preview slug fallback when no release exists and branch is unknown', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    execMock.mockImplementation(async (_cmd, args) => {
+      if (args?.includes('--is-shallow-repository')) {
+        return { stdout: 'false\n', stderr: '', exitCode: 0 }
+      }
+      if (args?.includes('--abbrev-ref')) {
+        throw new Error('branch unavailable')
+      }
+      if (args?.[0] === 'tag' && args[1] === '--list') {
+        return { stdout: '0.0.9\n', stderr: '', exitCode: 0 }
+      }
+      if (args?.includes('--short')) {
+        throw new Error('hash unavailable')
+      }
+      return { stdout: '', stderr: '', exitCode: 0 }
+    })
+
+    const version = await getNextVersion({
+      defaultBranch: '',
+      repositoryUrl: 'file:///tmp/repo',
+    })
+
+    expect(version).toBe('0.0.9-preview-preview')
+  })
+
+  it('supports deprecated mainBranch option alias', async () => {
+    semanticReleaseMock.mockResolvedValue({
+      nextRelease: { version: '1.0.0-beta.1' },
+    })
+    mockGit({ branch: 'develop' })
+
+    const version = await getNextVersion({
+      branches: [],
+      mainBranch: 'develop',
+      release: true,
+    })
+
+    expect(version).toBe('1.0.0')
   })
 
   it('uses local repositoryUrl for preview to avoid auth checks', async () => {
