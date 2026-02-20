@@ -7,12 +7,11 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/**/*.test.js'],
-    exclude: ['src/**/*.slow-test.js'],
     coverage: {
       provider: 'v8',
       reportsDirectory: 'coverage',
       include: ['src/**/*.js'],
-      exclude: ['src/**/*.test.js', 'src/**/*.slow-test.js'],
+      exclude: ['src/**/*.test.js'],
     },
   },
 })
