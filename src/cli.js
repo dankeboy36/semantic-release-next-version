@@ -8,12 +8,14 @@ import { getNextVersion } from './next-version.js'
 
 const HELP_TEXT = `
   Usage
-    $ next-version-helper [--release] [--cwd <path>] [--main-branch <name>]
+    $ next-version-helper [--release] [--cwd <path>] [--default-branch <name>]
 
   Options
     --release       Return the plain next release version (x.y.z)
     --cwd <path>    Working directory (defaults to current)
-    --main-branch   Name of the main release branch (default: main)
+    --default-branch
+                    Name of the default release branch (default: main)
+    --main-branch   Deprecated alias for --default-branch
     --help, -h      Show this help
     --version, -v   Show package version
 `
@@ -33,6 +35,7 @@ export async function run(argv = process.argv) {
       flags: {
         release: { type: 'boolean', default: false },
         cwd: { type: 'string' },
+        defaultBranch: { type: 'string' },
         mainBranch: { type: 'string' },
         help: { type: 'boolean', shortFlag: 'h' },
         version: { type: 'boolean', shortFlag: 'v' },
@@ -59,7 +62,7 @@ export async function run(argv = process.argv) {
     const version = await getNextVersion({
       cwd: cli.flags.cwd,
       release: Boolean(cli.flags.release),
-      mainBranch: cli.flags.mainBranch,
+      defaultBranch: cli.flags.defaultBranch ?? cli.flags.mainBranch,
     })
     console.log(version)
     return 0
