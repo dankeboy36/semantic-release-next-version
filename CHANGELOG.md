@@ -1,3 +1,10 @@
+## [0.1.5](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.4...0.1.5) (2026-02-20)
+
+
+### Bug Fixes
+
+* add no-release modes for release fallback ([#12](https://github.com/dankeboy36/semantic-release-next-version/issues/12)) ([e187fbf](https://github.com/dankeboy36/semantic-release-next-version/commit/e187fbf3590df802115a9e49b57c092ee66ee47a))
+
 ## [0.1.4](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.3...0.1.4) (2026-02-20)
 
 
