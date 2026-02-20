@@ -115,6 +115,32 @@ if [[ "$NO_RELEASE_PREVIEW" != "${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" ]]; 
   echo "Expected: ${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" >&2
   exit 1
 fi
+NO_RELEASE_RELEASE_CURRENT="$(
+  GITHUB_SHA="$NO_RELEASE_HASH" \
+  node "$ROOT_DIR/bin/cli.cjs" \
+    --release \
+    --on-no-release current \
+    --cwd "$TMP_NO_RELEASE_REPO" \
+    --default-branch "$DEFAULT_BRANCH"
+)"
+if [[ "$NO_RELEASE_RELEASE_CURRENT" != "$FALLBACK_TAG" ]]; then
+  echo "Unexpected no-release release/current version: $NO_RELEASE_RELEASE_CURRENT" >&2
+  echo "Expected: $FALLBACK_TAG" >&2
+  exit 1
+fi
+NO_RELEASE_RELEASE_PREVIEW="$(
+  GITHUB_SHA="$NO_RELEASE_HASH" \
+  node "$ROOT_DIR/bin/cli.cjs" \
+    --release \
+    --on-no-release preview \
+    --cwd "$TMP_NO_RELEASE_REPO" \
+    --default-branch "$DEFAULT_BRANCH"
+)"
+if [[ "$NO_RELEASE_RELEASE_PREVIEW" != "${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" ]]; then
+  echo "Unexpected no-release release/preview version: $NO_RELEASE_RELEASE_PREVIEW" >&2
+  echo "Expected: ${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" >&2
+  exit 1
+fi
 if GITHUB_SHA="$NO_RELEASE_HASH" node "$ROOT_DIR/bin/cli.cjs" \
   --release \
   --cwd "$TMP_NO_RELEASE_REPO" \
@@ -159,6 +185,40 @@ cp "$ROOT_DIR/$TARBALL" "$TMP_DIR/"
   )"
   if [[ "$NO_RELEASE_PREVIEW_PACKAGED" != "${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" ]]; then
     echo "Unexpected packaged no-release preview version: $NO_RELEASE_PREVIEW_PACKAGED" >&2
+    echo "Expected: ${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" >&2
+    exit 1
+  fi
+  NO_RELEASE_CURRENT_PACKAGED="$(
+    GITHUB_REF="refs/heads/$CURRENT_BRANCH" \
+    GITHUB_REF_NAME="$CURRENT_BRANCH" \
+    GITHUB_HEAD_REF="$CURRENT_BRANCH" \
+    GITHUB_BASE_REF="$DEFAULT_BRANCH" \
+    GITHUB_SHA="$NO_RELEASE_HASH" \
+    npx --yes --package="./$TARBALL" next-version-helper \
+      --release \
+      --on-no-release current \
+      --cwd "$TMP_NO_RELEASE_REPO" \
+      --default-branch "$DEFAULT_BRANCH"
+  )"
+  if [[ "$NO_RELEASE_CURRENT_PACKAGED" != "$FALLBACK_TAG" ]]; then
+    echo "Unexpected packaged no-release release/current version: $NO_RELEASE_CURRENT_PACKAGED" >&2
+    echo "Expected: $FALLBACK_TAG" >&2
+    exit 1
+  fi
+  NO_RELEASE_RELEASE_PREVIEW_PACKAGED="$(
+    GITHUB_REF="refs/heads/$CURRENT_BRANCH" \
+    GITHUB_REF_NAME="$CURRENT_BRANCH" \
+    GITHUB_HEAD_REF="$CURRENT_BRANCH" \
+    GITHUB_BASE_REF="$DEFAULT_BRANCH" \
+    GITHUB_SHA="$NO_RELEASE_HASH" \
+    npx --yes --package="./$TARBALL" next-version-helper \
+      --release \
+      --on-no-release preview \
+      --cwd "$TMP_NO_RELEASE_REPO" \
+      --default-branch "$DEFAULT_BRANCH"
+  )"
+  if [[ "$NO_RELEASE_RELEASE_PREVIEW_PACKAGED" != "${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" ]]; then
+    echo "Unexpected packaged no-release release/preview version: $NO_RELEASE_RELEASE_PREVIEW_PACKAGED" >&2
     echo "Expected: ${FALLBACK_TAG}-preview-${NO_RELEASE_HASH}" >&2
     exit 1
   fi

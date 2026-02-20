@@ -6,6 +6,8 @@ type SemanticReleaseOptionKeys =
   | 'tagFormat'
   | 'plugins'
 
+export type OnNoReleaseMode = 'error' | 'current' | 'preview'
+
 export type GetNextVersionOptions = {
   /** Working directory, defaults to process.cwd(). */
   cwd?: string
@@ -20,6 +22,14 @@ export type GetNextVersionOptions = {
    * x.y.z-preview-<hash> for non-default branches.
    */
   release?: boolean
+  /**
+   * Behavior when semantic-release does not produce a next version.
+   *
+   * - `error` (default): throw.
+   * - `current`: return current base version (`x.y.z`).
+   * - `preview`: return current base version preview (`x.y.z-preview-<hash>`).
+   */
+  onNoRelease?: OnNoReleaseMode
 } & Pick<SemanticReleaseOptions, SemanticReleaseOptionKeys>
 
 export declare function getNextVersion(

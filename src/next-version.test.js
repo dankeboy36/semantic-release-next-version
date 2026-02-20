@@ -270,6 +270,42 @@ describe('getNextVersion', () => {
     )
   })
 
+  it('returns current version in release mode when onNoRelease is current', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: ['0.0.9'] })
+
+    const version = await getNextVersion({
+      release: true,
+      onNoRelease: 'current',
+    })
+
+    expect(version).toBe('0.0.9')
+  })
+
+  it('returns preview version in release mode when onNoRelease is preview', async () => {
+    semanticReleaseMock.mockResolvedValue(null)
+    mockGit({ tags: ['0.0.9'] })
+
+    const version = await getNextVersion({
+      release: true,
+      onNoRelease: 'preview',
+    })
+
+    expect(version).toBe('0.0.9-preview-abcdef0')
+  })
+
+  it('throws for invalid onNoRelease option values', async () => {
+    await expect(
+      getNextVersion({
+        // @ts-expect-error - intentionally invalid input for runtime validation.
+        onNoRelease: 'invalid',
+      })
+    ).rejects.toThrow(
+      'Invalid onNoRelease option: invalid. Expected one of: error, current, preview.'
+    )
+    expect(semanticReleaseMock).not.toHaveBeenCalled()
+  })
+
   it('falls back to package.json when tags do not contain a semantic version', async () => {
     semanticReleaseMock.mockResolvedValue(null)
     execMock.mockRejectedValue(new Error('git unavailable'))

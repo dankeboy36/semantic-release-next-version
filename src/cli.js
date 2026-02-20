@@ -8,10 +8,12 @@ import { getNextVersion } from './next-version.js'
 
 const HELP_TEXT = `
   Usage
-    $ next-version-helper [--release] [--cwd <path>] [--default-branch <name>]
+    $ next-version-helper [--release] [--on-no-release <mode>] [--cwd <path>] [--default-branch <name>]
 
   Options
     --release       Return the plain next release version (x.y.z)
+    --on-no-release Behavior when --release has no releasable commits:
+                    error | current | preview (default: error)
     --cwd <path>    Working directory (defaults to current)
     --default-branch
                     Name of the default release branch (default: main)
@@ -34,6 +36,7 @@ export async function run(argv = process.argv) {
       argv: argList.slice(2),
       flags: {
         release: { type: 'boolean', default: false },
+        onNoRelease: { type: 'string' },
         cwd: { type: 'string' },
         defaultBranch: { type: 'string' },
         mainBranch: { type: 'string' },
@@ -63,6 +66,7 @@ export async function run(argv = process.argv) {
       cwd: cli.flags.cwd,
       release: Boolean(cli.flags.release),
       defaultBranch: cli.flags.defaultBranch ?? cli.flags.mainBranch,
+      ...(cli.flags.onNoRelease ? { onNoRelease: cli.flags.onNoRelease } : {}),
     })
     console.log(version)
     return 0

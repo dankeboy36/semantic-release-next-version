@@ -88,7 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           MODE=""
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then MODE="--release"; fi
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then MODE="--release --on-no-release preview"; fi
           VERSION=$(npx next-version-helper $MODE)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         # env:
@@ -115,6 +115,9 @@ npx next-version-helper
 npx next-version-helper --release
 # → 0.4.0
 
+npx next-version-helper --release --on-no-release preview
+# → 0.4.0-preview-abc1234 (when no releasable commits)
+
 # When you run from outside the repo (e.g. a packed tarball):
 npx next-version-helper --cwd /path/to/your/checkout --release
 ```
@@ -137,6 +140,10 @@ console.log(version)
 ## CLI options
 
 - `--release` / `-r`: return plain `x.y.z` (no preview suffix).
+- `--on-no-release <mode>`: behavior when `--release` has no releasable commits:
+  - `error` (default): exit with an error.
+  - `current`: return `<currentVersion>`.
+  - `preview`: return `<currentVersion>-preview-<hash>`.
 - `--cwd <path>`: run against a different working directory (useful when you call from a temp folder).
 - `--default-branch <name>`: set the primary release branch (default: `main`).
 - `--main-branch <name>`: deprecated alias for `--default-branch`.
@@ -149,11 +156,15 @@ console.log(version)
 - On `main` branch with `--release` → returns `x.y.z`.
 - On any branch without `--release` → returns `x.y.z-preview-<hash>`.
 - If there is no new release in preview mode → returns `<currentVersion>-preview-<hash>`.
-- If there is no new release with `--release` → exits with an error.
+- If there is no new release with `--release`:
+  - `--on-no-release error` (default) → exits with an error.
+  - `--on-no-release current` → returns `<currentVersion>`.
+  - `--on-no-release preview` → returns `<currentVersion>-preview-<hash>`.
 - `currentVersion` is resolved from the latest semantic version tag, then falls back to `package.json` version.
 - Uses `@semantic-release/commit-analyzer` by default (must be installed).
 - Default branch defaults to `main`; override with `--default-branch` or `defaultBranch` in code.
 - `--cwd` lets you run the CLI outside the repo root (for example after `npm pack`).
+- Recommended for main-branch packaging/smoke flows: `--release --on-no-release preview` to keep artifacts clearly non-stable and reduce accidental publish risk.
 
 ---
 

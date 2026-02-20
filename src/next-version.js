@@ -17,6 +17,7 @@ const TAG_FORMAT_VERSION_PATTERNS = [
   /\$\{\s*version\s*\}/g,
   /<%=\s*version\s*%>/g,
 ]
+const NO_RELEASE_BEHAVIORS = ['error', 'current', 'preview']
 
 /** @param {string} defaultBranch */
 function buildDefaultOptions(defaultBranch) {
@@ -236,16 +237,24 @@ export async function getNextVersion({
   tagFormat,
   plugins,
   release = false,
+  onNoRelease = 'error',
   defaultBranch,
   mainBranch,
 } = {}) {
+  if (!NO_RELEASE_BEHAVIORS.includes(onNoRelease)) {
+    throw new Error(
+      `Invalid onNoRelease option: ${String(onNoRelease)}. Expected one of: ${NO_RELEASE_BEHAVIORS.join(', ')}.`
+    )
+  }
+
   const resolvedDefaultBranch = defaultBranch ?? mainBranch ?? DEFAULT_BRANCH
   debug('start getNextVersion')
   debug(
-    'cwd=%s defaultBranch=%s release=%s',
+    'cwd=%s defaultBranch=%s release=%s onNoRelease=%s',
     cwd,
     resolvedDefaultBranch,
-    release
+    release,
+    onNoRelease
   )
   debug(
     'env GITHUB_HEAD_REF=%s GITHUB_REF=%s GITHUB_REF_NAME=%s',
@@ -362,11 +371,12 @@ export async function getNextVersion({
   }
 
   if (!result) {
-    if (!release) {
+    if (!release || onNoRelease === 'current' || onNoRelease === 'preview') {
       const baseVersion = await resolveCurrentBaseVersion(
         cwd,
         loadedConfig.tagFormat
       )
+      if (release && onNoRelease === 'current') return baseVersion
       const commitHash = await resolveCommitHash(
         cwd,
         toPrereleaseId(currentBranch || 'preview')
