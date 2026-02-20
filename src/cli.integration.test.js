@@ -74,4 +74,32 @@ describe('cli integration', () => {
     expect(logSpy).toHaveBeenCalledWith('0.0.9-preview-abc1234')
     expect(errorSpy).not.toHaveBeenCalled()
   })
+
+  it('prints preview fallback and exits 0 in release mode when configured with --on-no-release preview', async () => {
+    const exitCode = await run([
+      'node',
+      'cli.js',
+      '--release',
+      '--on-no-release',
+      'preview',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(logSpy).toHaveBeenCalledWith('0.0.9-preview-abc1234')
+    expect(errorSpy).not.toHaveBeenCalled()
+  })
+
+  it('prints current version and exits 0 in release mode when configured with --on-no-release current', async () => {
+    const exitCode = await run([
+      'node',
+      'cli.js',
+      '--release',
+      '--on-no-release',
+      'current',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(logSpy).toHaveBeenCalledWith('0.0.9')
+    expect(errorSpy).not.toHaveBeenCalled()
+  })
 })

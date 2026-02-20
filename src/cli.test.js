@@ -59,6 +59,46 @@ describe('cli', () => {
     })
   })
 
+  it('passes through --on-no-release preview', async () => {
+    getNextVersionMock.mockResolvedValue('1.0.0-preview-abc1234')
+
+    const exitCode = await run([
+      'node',
+      'cli.js',
+      '--release',
+      '--on-no-release',
+      'preview',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(getNextVersionMock).toHaveBeenCalledWith({
+      cwd: undefined,
+      defaultBranch: undefined,
+      onNoRelease: 'preview',
+      release: true,
+    })
+  })
+
+  it('passes through --on-no-release current', async () => {
+    getNextVersionMock.mockResolvedValue('1.0.0')
+
+    const exitCode = await run([
+      'node',
+      'cli.js',
+      '--release',
+      '--on-no-release',
+      'current',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(getNextVersionMock).toHaveBeenCalledWith({
+      cwd: undefined,
+      defaultBranch: undefined,
+      onNoRelease: 'current',
+      release: true,
+    })
+  })
+
   it('accepts a custom working directory', async () => {
     getNextVersionMock.mockResolvedValue('1.0.0')
 
@@ -79,6 +119,21 @@ describe('cli', () => {
 
     expect(exitCode).toBe(1)
     expect(errorSpy).toHaveBeenCalledWith('boom')
+  })
+
+  it('returns an error for invalid --on-no-release values', async () => {
+    getNextVersionMock.mockRejectedValue(
+      new Error(
+        'Invalid onNoRelease option: invalid. Expected one of: error, current, preview.'
+      )
+    )
+
+    const exitCode = await run(['node', 'cli.js', '--on-no-release', 'invalid'])
+
+    expect(exitCode).toBe(1)
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Invalid onNoRelease option: invalid. Expected one of: error, current, preview.'
+    )
   })
 
   it('rejects unknown flags', async () => {
