@@ -1,3 +1,10 @@
+## [0.1.4](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.3...0.1.4) (2026-02-20)
+
+
+### Bug Fixes
+
+* preview fallback + `defaultBranch` support ([#9](https://github.com/dankeboy36/semantic-release-next-version/issues/9)) ([bff7b90](https://github.com/dankeboy36/semantic-release-next-version/commit/bff7b904338faee88fe27ec00d63055cfaf12e03))
+
 ## [0.1.3](https://github.com/dankeboy36/semantic-release-next-version/compare/0.1.2...0.1.3) (2026-02-15)
 
 
